@@ -189,11 +189,28 @@ FRONTEND_URL=https://resume-builder-frontend.vercel.app
 
 ## 🔧 Troubleshooting
 
+### Backend shows "FUNCTION_INVOCATION_FAILED" error
+This means the serverless function is crashing. Common causes:
+
+1. **Missing Environment Variables**
+   - Go to Vercel → Your Backend Project → **Settings** → **Environment Variables**
+   - Verify ALL variables are set (see Step 3 in deployment guide)
+   - Important: `DB_PASSWORD` not `DB_PASS`, `DB_SSL=true`
+   - After adding variables, **redeploy** from Deployments tab
+
+2. **Database Connection Issues**
+   - Check Aiven database is running (green status)
+   - Verify `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` are correct
+   - Ensure `DB_SSL=true` is set
+
+3. **Check Logs**
+   - Go to **Deployments** → Click deployment → **Runtime Logs**
+   - Look for specific error messages
+
 ### Backend won't start
-- Check Vercel logs: Go to **Deployments** → Click on deployment → **"Logs"**
-- Verify all environment variables are set correctly
-- Ensure Aiven database is running
 - Check that `ROOT_DIRECTORY` is set to `backend`
+- Verify `backend/api/index.js` exists
+- Check `backend/vercel.json` configuration is present
 
 ### Frontend can't connect to backend
 - Check CORS: `FRONTEND_URL` in backend matches frontend Vercel URL

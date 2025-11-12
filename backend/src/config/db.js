@@ -8,6 +8,11 @@ const dbConfig = {
   user: process.env.DB_USER,
   password: process.env.DB_PASS || process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0
 };
 
 // Add SSL for production (required for Aiven)
@@ -17,7 +22,24 @@ if (process.env.DB_SSL === 'true' || process.env.NODE_ENV === 'production') {
   };
 }
 
-export const db = await mysql.createConnection(dbConfig);
+// Create connection pool for better serverless performance
+const pool = mysql.createPool(dbConfig);
 
-console.log("✅ MySQL connected successfully");
+// Export pool as db for compatibility
+export const db = {
+  query: (...args) => pool.query(...args),
+  execute: (...args) => pool.execute(...args),
+  getConnection: () => pool.getConnection(),
+  pool: pool
+};
+
+// Test connection on startup (non-blocking)
+pool.getConnection()
+  .then(connection => {
+    console.log("✅ MySQL connected successfully");
+    connection.release();
+  })
+  .catch(err => {
+    console.error("⚠️ MySQL connection warning:", err.message);
+  });
 
