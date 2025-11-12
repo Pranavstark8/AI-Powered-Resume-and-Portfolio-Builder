@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "name": "resume-builder-backend",
+  "builds": [
+    {
+      "src": "src/server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "src/server.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
+
