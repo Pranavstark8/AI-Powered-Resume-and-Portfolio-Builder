@@ -50,16 +50,53 @@ Once running, go to **"Overview"** tab and copy:
 - **Database** (default: `defaultdb`)
 
 ### Step 4: Setup Database Schema
+
+**IMPORTANT**: You need to create the basic table structure first!
+
+#### Option 1: Using Aiven Query Editor (Recommended)
+
 1. Click **"Query Editor"** in Aiven dashboard
-2. Or use MySQL client:
-```bash
-mysql -h <HOST> -P <PORT> -u avnadmin -p<PASSWORD> defaultdb
-```
-3. Run the setup SQL:
+2. Run these SQL scripts **in order**:
+
+**First, create the basic tables:**
 ```sql
--- Copy contents from backend/setup_database.sql
--- Then run backend/database_schema_update.sql
+-- Create users table
+CREATE TABLE IF NOT EXISTS users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create resumes table (basic structure)
+CREATE TABLE IF NOT EXISTS resumes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  summary JSON,
+  experience JSON,
+  education JSON,
+  skills JSON,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
+
+**Then, run the setup script:**
+- Copy and paste the entire contents of `backend/setup_resumes_table.sql`
+- Click **"Run"**
+
+**Finally, run the schema updates:**
+- Copy and paste the entire contents of `backend/database_schema_update.sql`
+- Click **"Run"**
+
+#### Option 2: Using MySQL Workbench
+
+1. Connect to your Aiven database
+2. Run the SQL scripts in this order:
+   - First: Create basic tables (see SQL above)
+   - Second: `backend/setup_resumes_table.sql`
+   - Third: `backend/database_schema_update.sql`
 
 ---
 

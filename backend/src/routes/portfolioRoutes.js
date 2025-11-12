@@ -20,57 +20,78 @@ router.post("/save", verifyToken, async (req, res) => {
       summary: resumeData.summary || ""
     };
     
-    // Try full INSERT first (with all columns)
-    try {
-      await db.execute(
-        "INSERT INTO resumes (user_id, title, summary, experience, education, skills, internship, job_experience, projects) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-        [
-          userId,
-          resumeData.title || null,
-          JSON.stringify(summaryObj),
-          JSON.stringify(resumeData.experience || []),
-          JSON.stringify(resumeData.education || []),
-          JSON.stringify(resumeData.skills || []),
-          JSON.stringify(resumeData.internship || []),
-          JSON.stringify(resumeData.jobExperience || []),
-          JSON.stringify(resumeData.projects || []),
-        ]
-      );
-    } catch (err) {
-      // If that fails, try with only basic columns (fallback for older schema)
-      if (err.code && err.code.startsWith('ER_BAD_FIELD_ERROR')) {
-        console.log("Some columns missing, trying basic INSERT");
-        try {
-          // Try with title column
-          await db.execute(
-            "INSERT INTO resumes (user_id, title, summary, experience, education, skills) VALUES (?, ?, ?, ?, ?, ?)", 
-            [
-              userId,
-              resumeData.title || null,
-              JSON.stringify(summaryObj),
-              JSON.stringify(resumeData.experience || []),
-              JSON.stringify(resumeData.education || []),
-              JSON.stringify(resumeData.skills || []),
-            ]
-          );
-        } catch (err2) {
-          // Final fallback - no title column
-          console.log("Title column missing, using minimal INSERT");
-          await db.execute(
-            "INSERT INTO resumes (user_id, summary, experience, education, skills) VALUES (?, ?, ?, ?, ?)", 
-            [
-              userId,
-              JSON.stringify(summaryObj),
-              JSON.stringify(resumeData.experience || []),
-              JSON.stringify(resumeData.education || []),
-              JSON.stringify(resumeData.skills || []),
-            ]
-          );
-        }
-      } else {
-        throw err; // Re-throw if it's not a column error
-      }
+    // First, check what columns actually exist in the resumes table
+    const [columns] = await db.execute(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+       WHERE TABLE_SCHEMA = DATABASE() 
+       AND TABLE_NAME = 'resumes'`
+    );
+    
+    const existingColumns = columns.map(col => col.COLUMN_NAME.toLowerCase());
+    console.log("Available columns in resumes table:", existingColumns);
+    
+    // Build INSERT query dynamically based on available columns
+    const insertColumns = [];
+    const insertValues = [];
+    
+    // Always include user_id if it exists
+    if (existingColumns.includes('user_id')) {
+      insertColumns.push('user_id');
+      insertValues.push(userId);
     }
+    
+    // Add optional columns if they exist
+    if (existingColumns.includes('title')) {
+      insertColumns.push('title');
+      insertValues.push(resumeData.title || null);
+    }
+    
+    if (existingColumns.includes('summary')) {
+      insertColumns.push('summary');
+      insertValues.push(JSON.stringify(summaryObj));
+    }
+    
+    if (existingColumns.includes('experience')) {
+      insertColumns.push('experience');
+      insertValues.push(JSON.stringify(resumeData.experience || []));
+    }
+    
+    if (existingColumns.includes('education')) {
+      insertColumns.push('education');
+      insertValues.push(JSON.stringify(resumeData.education || []));
+    }
+    
+    if (existingColumns.includes('skills')) {
+      insertColumns.push('skills');
+      insertValues.push(JSON.stringify(resumeData.skills || []));
+    }
+    
+    if (existingColumns.includes('internship')) {
+      insertColumns.push('internship');
+      insertValues.push(JSON.stringify(resumeData.internship || []));
+    }
+    
+    if (existingColumns.includes('job_experience')) {
+      insertColumns.push('job_experience');
+      insertValues.push(JSON.stringify(resumeData.jobExperience || []));
+    }
+    
+    if (existingColumns.includes('projects')) {
+      insertColumns.push('projects');
+      insertValues.push(JSON.stringify(resumeData.projects || []));
+    }
+    
+    // Check if we have at least user_id
+    if (insertColumns.length === 0) {
+      throw new Error("resumes table structure is invalid. Missing required columns.");
+    }
+    
+    // Build and execute the INSERT query
+    const placeholders = insertColumns.map(() => '?').join(', ');
+    const query = `INSERT INTO resumes (${insertColumns.join(', ')}) VALUES (${placeholders})`;
+    
+    console.log("Executing INSERT with columns:", insertColumns);
+    await db.execute(query, insertValues);
     
     res.json({ message: "Resume saved successfully!" });
   } catch (err) {
@@ -81,10 +102,19 @@ router.post("/save", verifyToken, async (req, res) => {
       sqlState: err.sqlState,
       sqlMessage: err.sqlMessage
     });
-    res.status(500).json({ 
-      message: "Error saving resume",
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
-    });
+    
+    // Provide helpful error message
+    if (err.code === 'ER_BAD_FIELD_ERROR' || err.message.includes('table structure')) {
+      res.status(500).json({ 
+        message: "Database schema error. Please ensure the resumes table has the required columns (user_id, summary, experience, education, skills).",
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
+    } else {
+      res.status(500).json({ 
+        message: "Error saving resume",
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
+    }
   }
 });
 
