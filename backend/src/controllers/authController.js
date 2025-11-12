@@ -43,10 +43,28 @@ export const registerUser = async (req, res) => {
     });
   } catch (error) {
     console.error("Registration error:", error);
+    console.error("Error details:", {
+      message: error.message,
+      code: error.code,
+      sqlState: error.sqlState,
+      sqlMessage: error.sqlMessage
+    });
     
     // Don't expose internal error details to client
     if (error.code === 'ER_DUP_ENTRY') {
       return res.status(400).json({ message: "Email already registered" });
+    }
+    
+    // Database connection errors
+    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+      console.error("Database connection failed:", error.message);
+      return res.status(500).json({ message: "Database connection error. Please try again later." });
+    }
+    
+    // SQL errors
+    if (error.code && error.code.startsWith('ER_')) {
+      console.error("SQL error:", error.sqlMessage);
+      return res.status(500).json({ message: "Database error. Please contact support." });
     }
     
     res.status(500).json({ message: "Registration failed. Please try again." });

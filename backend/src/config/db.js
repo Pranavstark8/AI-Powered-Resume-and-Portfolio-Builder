@@ -40,6 +40,13 @@ pool.getConnection()
     connection.release();
   })
   .catch(err => {
-    console.error("⚠️ MySQL connection warning:", err.message);
+    console.error("❌ MySQL connection failed:", err.message);
+    console.error("Connection details:", {
+      host: dbConfig.host,
+      port: dbConfig.port,
+      user: dbConfig.user,
+      database: dbConfig.database,
+      ssl: dbConfig.ssl ? 'enabled' : 'disabled'
+    });
   });
 

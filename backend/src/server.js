@@ -60,6 +60,27 @@ app.get("/", (req, res) => {
   });
 });
 
+// Database health check endpoint
+app.get("/health", async (req, res) => {
+  try {
+    // Test database connection
+    await db.query("SELECT 1 as test");
+    res.json({ 
+      status: "healthy",
+      database: "connected",
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Database health check failed:", error);
+    res.status(503).json({ 
+      status: "unhealthy",
+      database: "disconnected",
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
