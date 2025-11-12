@@ -148,27 +148,35 @@ FRONTEND_URL=https://your-frontend-app.vercel.app
 ### Step 2: Add Environment Variable
 In **"Environment Variables"** section:
 ```bash
-REACT_APP_API_URL=https://resume-builder-backend.vercel.app
+REACT_APP_API_URL=https://resume-builder-backend-ten-gamma.vercel.app
 ```
 (Replace with your **actual backend URL** from Step 2)
 
-> **Important**: Make sure to include `/api` is NOT needed - just use the root URL
+> **Critical Notes**:
+> - ❌ **NO trailing slash**: Use `https://backend.vercel.app` not `https://backend.vercel.app/`
+> - ❌ **NO /api suffix**: Use `https://backend.vercel.app` not `https://backend.vercel.app/api`
+> - ✅ **Just the root URL**: `https://your-backend-name.vercel.app`
 
 ### Step 3: Deploy Frontend
 1. Click **"Deploy"**
 2. Wait 2-3 minutes
 3. Your frontend is live at: `https://resume-builder-frontend.vercel.app`
 
-### Step 4: Update Backend CORS
+### Step 4: Update Backend CORS (IMPORTANT!)
 1. Go to your **backend project** in Vercel
 2. Click **"Settings"** → **"Environment Variables"**
-3. Find `FRONTEND_URL` and update it:
+3. Find `FRONTEND_URL` and update it to your **actual frontend URL**:
 ```bash
-FRONTEND_URL=https://resume-builder-frontend.vercel.app
+FRONTEND_URL=https://resume-builder-frontend-chi-five.vercel.app
 ```
+> **⚠️ Critical**: 
+> - ❌ NO trailing slash: Use `https://frontend.vercel.app` not `https://frontend.vercel.app/`
+> - ✅ Copy EXACT URL from Vercel dashboard
+
 4. Go to **"Deployments"** tab
 5. Click the **3 dots (•••)** on the latest deployment
 6. Click **"Redeploy"** to apply the new CORS settings
+7. **Wait 2-3 minutes** for redeployment to complete
 
 ---
 
@@ -214,11 +222,35 @@ This means the serverless function is crashing. Common causes:
 - Verify `backend/api/index.js` exists
 - Check `backend/vercel.json` configuration is present
 
-### Frontend can't connect to backend
-- Check CORS: `FRONTEND_URL` in backend matches frontend Vercel URL
-- Verify `REACT_APP_API_URL` in frontend environment variables
-- Check browser console (F12) for errors
-- Ensure both URLs are using `https://`
+### Frontend can't connect to backend (CORS errors)
+**Error**: "blocked by CORS policy" or "Redirect is not allowed for a preflight request"
+
+**Solutions**:
+
+1. **Check for Double Slashes in URL**
+   - ❌ Wrong: `https://backend.vercel.app//api/auth/register` (notice `//`)
+   - ✅ Correct: `https://backend.vercel.app/api/auth/register`
+   - **Fix**: Remove trailing slash from `REACT_APP_API_URL` in frontend env variables
+
+2. **Verify CORS Configuration**
+   - Go to **Backend Project** → **Settings** → **Environment Variables**
+   - Check `FRONTEND_URL` exactly matches your frontend URL
+   - ❌ Wrong: `https://frontend.vercel.app/` (has trailing slash)
+   - ✅ Correct: `https://frontend.vercel.app`
+   - After fixing, **redeploy backend**
+
+3. **Check Both URLs**
+   - Both `REACT_APP_API_URL` and `FRONTEND_URL` should have NO trailing slashes
+   - Both should use `https://` in production
+   - Use exact URLs from Vercel dashboard
+
+4. **Clear Browser Cache**
+   - Press `Ctrl+Shift+R` (Windows) or `Cmd+Shift+R` (Mac)
+   - Or open in incognito mode
+
+5. **Check Logs**
+   - Backend logs: Vercel → Backend Project → Deployments → Click deployment → Logs
+   - Frontend console: Press F12 in browser → Console tab
 
 ### Database connection failed
 - Ensure `DB_SSL=true` is set in backend environment variables

@@ -15,11 +15,29 @@ const app = express();
 app.use(securityHeaders);
 app.use(requestSizeLimiter);
 
-// CORS configuration
+// CORS configuration - Allow multiple origins
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:3000',
+  'http://localhost:3001'
+].filter(Boolean); // Remove undefined values
+
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or Postman)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list or matches Vercel preview deployments
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('.vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 app.use(cors(corsOptions));
 
