@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import API_URL from "../config/api";
 
 export default function ResumeBuilder() {
   const navigate = useNavigate();
@@ -58,7 +59,7 @@ export default function ResumeBuilder() {
     setLoadingResume(true);
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(`http://localhost:5000/api/portfolio/resume/${id}`, {
+      const response = await axios.get(`${API_URL}/api/portfolio/resume/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -239,7 +240,7 @@ export default function ResumeBuilder() {
         projects: projects.filter(proj => proj.title || proj.techStack)
       };
 
-      const res = await axios.post("http://localhost:5000/api/ai/generate", payload, {
+      const res = await axios.post(`${API_URL}/api/ai/generate`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -278,7 +279,7 @@ export default function ResumeBuilder() {
       if (isEditMode && resumeId) {
         // Update existing resume
         await axios.put(
-          `http://localhost:5000/api/portfolio/update/${resumeId}`,
+          `${API_URL}/api/portfolio/update/${resumeId}`,
           { resumeData: dataToSave },
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -286,7 +287,7 @@ export default function ResumeBuilder() {
       } else {
         // Create new resume
         await axios.post(
-          "http://localhost:5000/api/portfolio/save",
+          `${API_URL}/api/portfolio/save`,
           { resumeData: dataToSave },
           { headers: { Authorization: `Bearer ${token}` } }
         );

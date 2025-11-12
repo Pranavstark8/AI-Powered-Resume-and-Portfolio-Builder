@@ -146,11 +146,13 @@ FRONTEND_URL=https://your-frontend-app.vercel.app
 > **Important**: Don't add `cd frontend` to any commands - the Root Directory already handles this!
 
 ### Step 2: Add Environment Variable
-In **"Environment Variables"**:
+In **"Environment Variables"** section:
 ```bash
 REACT_APP_API_URL=https://resume-builder-backend.vercel.app
 ```
-(Use your actual backend URL from Step 2)
+(Replace with your **actual backend URL** from Step 2)
+
+> **Important**: Make sure to include `/api` is NOT needed - just use the root URL
 
 ### Step 3: Deploy Frontend
 1. Click **"Deploy"**

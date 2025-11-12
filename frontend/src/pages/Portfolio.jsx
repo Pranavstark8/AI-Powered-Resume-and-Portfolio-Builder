@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
+import API_URL from "../config/api";
 
 export default function PortfolioPage() {
   const { userId } = useParams();
@@ -30,7 +31,7 @@ export default function PortfolioPage() {
     const fetchPortfolio = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`http://localhost:5000/api/portfolio/${userId}`);
+        const res = await axios.get(`${API_URL}/api/portfolio/${userId}`);
         setResume(res.data);
         setNotFound(false);
       } catch (err) {

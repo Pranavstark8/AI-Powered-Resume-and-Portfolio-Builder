@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate, useLocation } from "react-router-dom";
 import ResumePreviewModal from "../components/ResumePreviewModal";
 import ImageUploader from "../components/ImageUploader";
+import API_URL from "../config/api";
 
 export default function Dashboard() {
   const [resumes, setResumes] = useState([]);
@@ -35,13 +36,13 @@ export default function Dashboard() {
       try {
         setLoading(true);
         const [resumesRes, statsRes, profileRes] = await Promise.all([
-          axios.get("http://localhost:5000/api/portfolio/user", {
+          axios.get(`${API_URL}/api/portfolio/user`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          axios.get("http://localhost:5000/api/portfolio/stats", {
+          axios.get(`${API_URL}/api/portfolio/stats`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          axios.get("http://localhost:5000/api/auth/profile", {
+          axios.get(`${API_URL}/api/auth/profile`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
@@ -75,7 +76,7 @@ export default function Dashboard() {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.put(
-        "http://localhost:5000/api/auth/profile-picture",
+        `${API_URL}/api/auth/profile-picture`,
         {
           profilePictureUrl: imageUrl,
           publicId: publicId

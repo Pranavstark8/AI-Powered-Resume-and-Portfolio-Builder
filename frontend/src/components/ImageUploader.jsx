@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import ReactCrop from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import axios from "axios";
+import API_URL from "../config/api";
 
 export default function ImageUploader({ onImageUploaded, currentImageUrl, currentPublicId, onImageDeleted }) {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -127,7 +128,7 @@ export default function ImageUploader({ onImageUploaded, currentImageUrl, curren
       
       // Upload to backend
       const response = await axios.post(
-        "http://localhost:5000/api/upload/upload",
+        `${API_URL}/api/upload/upload`,
         formData,
         {
           headers: {
@@ -208,7 +209,7 @@ export default function ImageUploader({ onImageUploaded, currentImageUrl, curren
       // Delete from Cloudinary (if we have public_id)
       if (currentPublicId) {
         await axios.delete(
-          `http://localhost:5000/api/upload/delete/${encodeURIComponent(currentPublicId)}`,
+          `${API_URL}/api/upload/delete/${encodeURIComponent(currentPublicId)}`,
           {
             headers: { Authorization: `Bearer ${token}` }
           }
@@ -217,7 +218,7 @@ export default function ImageUploader({ onImageUploaded, currentImageUrl, curren
 
       // Update database to remove profile picture URL
       await axios.put(
-        "http://localhost:5000/api/auth/profile-picture",
+        `${API_URL}/api/auth/profile-picture`,
         {
           profilePictureUrl: null,
           publicId: null
