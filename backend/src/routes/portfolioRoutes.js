@@ -20,23 +20,71 @@ router.post("/save", verifyToken, async (req, res) => {
       summary: resumeData.summary || ""
     };
     
-    await db.execute(
-      "INSERT INTO resumes (user_id, title, summary, experience, education, skills, internship, job_experience, projects) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-      [
-        userId,
-        resumeData.title || null,
-        JSON.stringify(summaryObj),
-        JSON.stringify(resumeData.experience || []),
-        JSON.stringify(resumeData.education || []),
-        JSON.stringify(resumeData.skills || []),
-        JSON.stringify(resumeData.internship || []),
-        JSON.stringify(resumeData.jobExperience || []),
-        JSON.stringify(resumeData.projects || []),
-      ]
-    );
+    // Try full INSERT first (with all columns)
+    try {
+      await db.execute(
+        "INSERT INTO resumes (user_id, title, summary, experience, education, skills, internship, job_experience, projects) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+        [
+          userId,
+          resumeData.title || null,
+          JSON.stringify(summaryObj),
+          JSON.stringify(resumeData.experience || []),
+          JSON.stringify(resumeData.education || []),
+          JSON.stringify(resumeData.skills || []),
+          JSON.stringify(resumeData.internship || []),
+          JSON.stringify(resumeData.jobExperience || []),
+          JSON.stringify(resumeData.projects || []),
+        ]
+      );
+    } catch (err) {
+      // If that fails, try with only basic columns (fallback for older schema)
+      if (err.code && err.code.startsWith('ER_BAD_FIELD_ERROR')) {
+        console.log("Some columns missing, trying basic INSERT");
+        try {
+          // Try with title column
+          await db.execute(
+            "INSERT INTO resumes (user_id, title, summary, experience, education, skills) VALUES (?, ?, ?, ?, ?, ?)", 
+            [
+              userId,
+              resumeData.title || null,
+              JSON.stringify(summaryObj),
+              JSON.stringify(resumeData.experience || []),
+              JSON.stringify(resumeData.education || []),
+              JSON.stringify(resumeData.skills || []),
+            ]
+          );
+        } catch (err2) {
+          // Final fallback - no title column
+          console.log("Title column missing, using minimal INSERT");
+          await db.execute(
+            "INSERT INTO resumes (user_id, summary, experience, education, skills) VALUES (?, ?, ?, ?, ?)", 
+            [
+              userId,
+              JSON.stringify(summaryObj),
+              JSON.stringify(resumeData.experience || []),
+              JSON.stringify(resumeData.education || []),
+              JSON.stringify(resumeData.skills || []),
+            ]
+          );
+        }
+      } else {
+        throw err; // Re-throw if it's not a column error
+      }
+    }
+    
     res.json({ message: "Resume saved successfully!" });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Error saving resume:", err);
+    console.error("Error details:", {
+      message: err.message,
+      code: err.code,
+      sqlState: err.sqlState,
+      sqlMessage: err.sqlMessage
+    });
+    res.status(500).json({ 
+      message: "Error saving resume",
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 
@@ -267,26 +315,74 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       summary: resumeData.summary || ""
     };
 
-    await db.execute(
-      "UPDATE resumes SET title = ?, summary = ?, experience = ?, education = ?, skills = ?, internship = ?, job_experience = ?, projects = ?, updated_at = NOW() WHERE id = ? AND user_id = ?",
-      [
-        resumeData.title || null,
-        JSON.stringify(summaryObj),
-        JSON.stringify(resumeData.experience || []),
-        JSON.stringify(resumeData.education || []),
-        JSON.stringify(resumeData.skills || []),
-        JSON.stringify(resumeData.internship || []),
-        JSON.stringify(resumeData.jobExperience || []),
-        JSON.stringify(resumeData.projects || []),
-        id,
-        userId
-      ]
-    );
+    // Try full UPDATE first (with all columns)
+    try {
+      await db.execute(
+        "UPDATE resumes SET title = ?, summary = ?, experience = ?, education = ?, skills = ?, internship = ?, job_experience = ?, projects = ?, updated_at = NOW() WHERE id = ? AND user_id = ?",
+        [
+          resumeData.title || null,
+          JSON.stringify(summaryObj),
+          JSON.stringify(resumeData.experience || []),
+          JSON.stringify(resumeData.education || []),
+          JSON.stringify(resumeData.skills || []),
+          JSON.stringify(resumeData.internship || []),
+          JSON.stringify(resumeData.jobExperience || []),
+          JSON.stringify(resumeData.projects || []),
+          id,
+          userId
+        ]
+      );
+    } catch (err) {
+      // If that fails, try with only basic columns (fallback for older schema)
+      if (err.code && err.code.startsWith('ER_BAD_FIELD_ERROR')) {
+        console.log("Some columns missing, trying basic UPDATE");
+        try {
+          // Try with title and updated_at
+          await db.execute(
+            "UPDATE resumes SET title = ?, summary = ?, experience = ?, education = ?, skills = ?, updated_at = NOW() WHERE id = ? AND user_id = ?",
+            [
+              resumeData.title || null,
+              JSON.stringify(summaryObj),
+              JSON.stringify(resumeData.experience || []),
+              JSON.stringify(resumeData.education || []),
+              JSON.stringify(resumeData.skills || []),
+              id,
+              userId
+            ]
+          );
+        } catch (err2) {
+          // Final fallback - no title or updated_at columns
+          console.log("Title/updated_at columns missing, using minimal UPDATE");
+          await db.execute(
+            "UPDATE resumes SET summary = ?, experience = ?, education = ?, skills = ? WHERE id = ? AND user_id = ?",
+            [
+              JSON.stringify(summaryObj),
+              JSON.stringify(resumeData.experience || []),
+              JSON.stringify(resumeData.education || []),
+              JSON.stringify(resumeData.skills || []),
+              id,
+              userId
+            ]
+          );
+        }
+      } else {
+        throw err; // Re-throw if it's not a column error
+      }
+    }
     
     res.json({ message: "Resume updated successfully" });
   } catch (err) {
     console.error("Error updating resume:", err);
-    res.status(500).json({ message: err.message });
+    console.error("Error details:", {
+      message: err.message,
+      code: err.code,
+      sqlState: err.sqlState,
+      sqlMessage: err.sqlMessage
+    });
+    res.status(500).json({ 
+      message: "Error updating resume",
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 
