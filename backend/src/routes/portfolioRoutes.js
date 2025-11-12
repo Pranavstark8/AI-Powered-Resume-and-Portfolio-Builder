@@ -82,23 +82,58 @@ router.get("/stats", verifyToken, async (req, res) => {
       [userId]
     );
 
-    // Get last updated resume
-    const [lastResume] = await db.execute(
-      "SELECT id, updated_at, experience FROM resumes WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1",
-      [userId]
-    );
+    // Get last updated resume (handle missing updated_at column)
+    let lastResume = [];
+    try {
+      const [result] = await db.execute(
+        "SELECT id, updated_at, experience FROM resumes WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1",
+        [userId]
+      );
+      lastResume = result;
+    } catch (err) {
+      // Fallback if updated_at doesn't exist, use created_at or id
+      try {
+        const [result] = await db.execute(
+          "SELECT id, created_at as updated_at, experience FROM resumes WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+          [userId]
+        );
+        lastResume = result;
+      } catch (err2) {
+        const [result] = await db.execute(
+          "SELECT id, experience FROM resumes WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+          [userId]
+        );
+        lastResume = result;
+      }
+    }
 
-    // Get resumes from last month for comparison
-    const [lastMonthCount] = await db.execute(
-      "SELECT COUNT(*) as total FROM resumes WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)",
-      [userId]
-    );
+    // Get resumes from last month for comparison (handle missing created_at)
+    let lastMonthCount = [{ total: 0 }];
+    try {
+      const [result] = await db.execute(
+        "SELECT COUNT(*) as total FROM resumes WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)",
+        [userId]
+      );
+      lastMonthCount = result;
+    } catch (err) {
+      // If created_at doesn't exist, just return 0
+      console.log("created_at column not found, returning 0 for newThisMonth");
+      lastMonthCount = [{ total: 0 }];
+    }
 
-    // Get portfolio views
-    const [viewsData] = await db.execute(
-      "SELECT views, views_this_week FROM portfolio_views WHERE user_id = ?",
-      [userId]
-    );
+    // Get portfolio views (handle missing table gracefully)
+    let viewsData = [];
+    try {
+      const [result] = await db.execute(
+        "SELECT views, views_this_week FROM portfolio_views WHERE user_id = ?",
+        [userId]
+      );
+      viewsData = result;
+    } catch (err) {
+      // portfolio_views table doesn't exist yet - return zeros
+      console.log("portfolio_views table not found, returning default values");
+      viewsData = [];
+    }
 
     let lastResumeTitle = null;
     if (lastResume.length > 0) {
@@ -116,7 +151,7 @@ router.get("/stats", verifyToken, async (req, res) => {
 
     res.json({
       totalResumes: resumeCount[0].total,
-      lastUpdated: lastResume.length > 0 ? lastResume[0].updated_at : null,
+      lastUpdated: lastResume.length > 0 ? (lastResume[0].updated_at || lastResume[0].created_at || null) : null,
       lastResumeTitle: lastResumeTitle,
       newThisMonth: lastMonthCount[0].total,
       portfolioViews: viewsData.length > 0 ? viewsData[0].views : 0,
@@ -124,7 +159,16 @@ router.get("/stats", verifyToken, async (req, res) => {
     });
   } catch (err) {
     console.error("Error fetching stats:", err);
-    res.status(500).json({ message: err.message });
+    console.error("Error details:", {
+      message: err.message,
+      code: err.code,
+      sqlState: err.sqlState,
+      sqlMessage: err.sqlMessage
+    });
+    res.status(500).json({ 
+      message: "Error fetching dashboard stats",
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 
@@ -139,25 +183,46 @@ router.get("/:userId", async (req, res) => {
     );
     if (rows.length === 0) return res.status(404).json({ message: "No portfolio found" });
 
-    // Get user's name and profile picture from users table
-    const [userRows] = await db.execute(
-      "SELECT name, profile_picture, profile_picture_public_id FROM users WHERE id = ?",
-      [userId]
-    );
+    // Get user's name and profile picture from users table (handle missing columns)
+    let userRows = [];
+    try {
+      const [result] = await db.execute(
+        "SELECT name, profile_picture, profile_picture_public_id FROM users WHERE id = ?",
+        [userId]
+      );
+      userRows = result;
+    } catch (err) {
+      // Fallback if profile_picture columns don't exist
+      try {
+        const [result] = await db.execute(
+          "SELECT name FROM users WHERE id = ?",
+          [userId]
+        );
+        userRows = result;
+      } catch (err2) {
+        console.error("Error fetching user:", err2);
+        userRows = [];
+      }
+    }
 
-    // Track view (increment both total views and weekly views)
-    await db.execute(
-      `INSERT INTO portfolio_views (user_id, views, views_this_week, last_view_date) 
-       VALUES (?, 1, 1, NOW()) 
-       ON DUPLICATE KEY UPDATE 
-         views = views + 1,
-         views_this_week = CASE 
-           WHEN YEARWEEK(last_view_date, 1) = YEARWEEK(NOW(), 1) THEN views_this_week + 1
-           ELSE 1
-         END,
-         last_view_date = NOW()`,
-      [userId]
-    );
+    // Track view (increment both total views and weekly views) - handle missing table
+    try {
+      await db.execute(
+        `INSERT INTO portfolio_views (user_id, views, views_this_week, last_view_date) 
+         VALUES (?, 1, 1, NOW()) 
+         ON DUPLICATE KEY UPDATE 
+           views = views + 1,
+           views_this_week = CASE 
+             WHEN YEARWEEK(last_view_date, 1) = YEARWEEK(NOW(), 1) THEN views_this_week + 1
+             ELSE 1
+           END,
+           last_view_date = NOW()`,
+        [userId]
+      );
+    } catch (err) {
+      // portfolio_views table doesn't exist - silently continue
+      console.log("portfolio_views table not found, skipping view tracking");
+    }
 
     // Add user's account name and profile picture to the response
     const resume = rows[0];
