@@ -253,10 +253,17 @@ This means the serverless function is crashing. Common causes:
    - Frontend console: Press F12 in browser → Console tab
 
 ### Database connection failed
+
+**Error**: "self-signed certificate in certificate chain" or "HANDSHAKE_SSL_ERROR"
+
+**Solution**: This is fixed in the code! Just redeploy your backend. The SSL configuration now accepts Aiven's certificates.
+
+**Other database issues**:
 - Ensure `DB_SSL=true` is set in backend environment variables
 - Verify Aiven credentials are correct (no extra spaces)
 - Check if Aiven service is running (green status)
 - Test connection in MySQL Workbench first
+- Verify `DB_PASSWORD` (not `DB_PASS`) is set correctly
 
 ### Image upload fails
 - Verify Cloudinary credentials in backend environment variables
