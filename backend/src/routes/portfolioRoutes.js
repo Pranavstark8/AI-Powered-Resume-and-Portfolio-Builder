@@ -123,7 +123,25 @@ router.get("/user", verifyToken, async (req, res) => {
   const userId = req.user.id;
   try {
     const [rows] = await db.execute("SELECT * FROM resumes WHERE user_id = ?", [userId]);
-    res.json(rows);
+    
+    // Parse JSON strings from database to objects/arrays
+    const fieldsToParse = ['summary', 'skills', 'experience', 'education', 'internship', 'job_experience', 'projects'];
+    const parsedRows = rows.map(resume => {
+      const parsed = { ...resume };
+      fieldsToParse.forEach(field => {
+        if (parsed[field] && typeof parsed[field] === 'string') {
+          try {
+            parsed[field] = JSON.parse(parsed[field]);
+          } catch (e) {
+            // If parsing fails, keep as string
+            console.log(`Warning: Could not parse ${field} as JSON for resume ${resume.id}`);
+          }
+        }
+      });
+      return parsed;
+    });
+    
+    res.json(parsedRows);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -144,7 +162,21 @@ router.get("/resume/:id", verifyToken, async (req, res) => {
       return res.status(404).json({ message: "Resume not found" });
     }
     
-    res.json(rows[0]);
+    // Parse JSON strings from database to objects/arrays
+    const resume = rows[0];
+    const fieldsToParse = ['summary', 'skills', 'experience', 'education', 'internship', 'job_experience', 'projects'];
+    fieldsToParse.forEach(field => {
+      if (resume[field] && typeof resume[field] === 'string') {
+        try {
+          resume[field] = JSON.parse(resume[field]);
+        } catch (e) {
+          // If parsing fails, keep as string
+          console.log(`Warning: Could not parse ${field} as JSON for resume ${id}`);
+        }
+      }
+    });
+    
+    res.json(resume);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -309,6 +341,20 @@ router.get("/:userId", async (req, res) => {
       resume.profilePicture = userRows[0].profile_picture;
       resume.profilePicturePublicId = userRows[0].profile_picture_public_id;
     }
+
+    // Parse JSON strings from database to objects/arrays
+    // MySQL returns JSON columns as strings, so we need to parse them
+    const fieldsToParse = ['summary', 'skills', 'experience', 'education', 'internship', 'job_experience', 'projects'];
+    fieldsToParse.forEach(field => {
+      if (resume[field] && typeof resume[field] === 'string') {
+        try {
+          resume[field] = JSON.parse(resume[field]);
+        } catch (e) {
+          // If parsing fails, keep as string
+          console.log(`Warning: Could not parse ${field} as JSON, keeping as string`);
+        }
+      }
+    });
 
     res.json(resume);
   } catch (err) {
