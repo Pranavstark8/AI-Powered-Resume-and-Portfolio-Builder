@@ -347,11 +347,35 @@ export default function ResumeBuilder() {
     try {
       const token = localStorage.getItem("token");
       
-      // Add resume title to resume data
+      // Prepare skills array
+      const skillsArray = skills.split(",").map(s => s.trim()).filter(s => s);
+      
+      // Combine internships and jobs for experience
+      const allExperience = [
+        ...internships.map(int => ({ ...int, type: "Internship" })),
+        ...jobs.map(job => ({ ...job, type: "Full-time" }))
+      ];
+      
+      // Build complete resume data structure
+      // Ensure all fields are properly formatted for backend
       const dataToSave = {
-        ...resumeData,
-        title: resumeTitle
+        title: resumeTitle || "",
+        name: name || "",
+        email: email || "",
+        mobile: mobile ? `${countryCode} ${mobile}` : "",
+        linkedin: linkedin || "",
+        github: github || "",
+        portfolio: portfolio || "",
+        summary: resumeData?.summary || "", // AI-generated summary if available
+        skills: skillsArray,
+        education: educationList.filter(ed => ed.degree || ed.institution),
+        experience: allExperience.filter(exp => exp.role || exp.company),
+        internship: internships.filter(int => int.role || int.company),
+        jobExperience: jobs.filter(job => job.role || job.company),
+        projects: projects.filter(proj => proj.title || proj.techStack)
       };
+      
+      console.log("Saving resume data:", dataToSave);
       
       if (isEditMode && resumeId) {
         // Update existing resume
@@ -375,7 +399,8 @@ export default function ResumeBuilder() {
       setTimeout(() => navigate("/dashboard"), 2000);
     } catch (error) {
       console.error("Error saving resume:", error);
-      setSaveMessage("❌ Error saving resume. Please try again.");
+      console.error("Error response:", error.response?.data);
+      setSaveMessage(`❌ Error saving resume: ${error.response?.data?.message || error.message || "Please try again."}`);
     } finally {
       setSaving(false);
     }

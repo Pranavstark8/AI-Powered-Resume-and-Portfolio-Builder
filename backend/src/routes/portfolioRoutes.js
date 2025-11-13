@@ -453,11 +453,22 @@ router.put("/update/:id", verifyToken, async (req, res) => {
       message: err.message,
       code: err.code,
       sqlState: err.sqlState,
-      sqlMessage: err.sqlMessage
+      sqlMessage: err.sqlMessage,
+      stack: err.stack
+    });
+    console.error("Request data received:", {
+      id,
+      userId,
+      resumeDataKeys: resumeData ? Object.keys(resumeData) : 'no data',
+      resumeData: resumeData
     });
     res.status(500).json({ 
       message: "Error updating resume",
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined,
+      details: process.env.NODE_ENV === 'development' ? {
+        code: err.code,
+        sqlMessage: err.sqlMessage
+      } : undefined
     });
   }
 });
