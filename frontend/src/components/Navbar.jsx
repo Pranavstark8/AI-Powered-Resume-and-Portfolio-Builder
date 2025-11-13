@@ -7,10 +7,40 @@ export default function Navbar() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const userData = localStorage.getItem("user");
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
+    const loadUser = () => {
+      const userData = localStorage.getItem("user");
+      if (userData) {
+        try {
+          const parsedUser = JSON.parse(userData);
+          setUser(parsedUser);
+        } catch (e) {
+          console.error("Error parsing user data:", e);
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+    };
+
+    // Load user on mount and location change
+    loadUser();
+
+    // Listen for storage changes (when user is updated in other components)
+    const handleStorageChange = (e) => {
+      if (e.key === 'user') {
+        loadUser();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for custom event for same-tab updates
+    window.addEventListener('userUpdated', loadUser);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('userUpdated', loadUser);
+    };
   }, [location]);
 
   const handleLogout = () => {
@@ -89,7 +119,7 @@ export default function Navbar() {
                 Build Resume
               </Link>
               <span style={{ color: "#718096", fontSize: "0.9rem" }}>
-                Welcome, {user.name}!
+                Welcome, {user?.name || user?.email?.split('@')[0] || 'User'}!
               </span>
               <button
                 onClick={handleLogout}

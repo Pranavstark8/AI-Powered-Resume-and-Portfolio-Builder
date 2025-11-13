@@ -18,24 +18,54 @@ export default function PortfolioPage() {
 
   // Safe parse function - handles already parsed data or JSON strings
   const safeParse = (data) => {
-    if (!data) return null;
-    if (typeof data === 'object') return data;
-    try {
-      return JSON.parse(data);
-    } catch {
-      return data;
+    if (data === null || data === undefined || data === '') return null;
+    if (typeof data === 'object' && !Array.isArray(data)) return data;
+    if (Array.isArray(data)) return data;
+    if (typeof data === 'string') {
+      // Try to parse as JSON first
+      try {
+        const parsed = JSON.parse(data);
+        return parsed;
+      } catch (e) {
+        // If not valid JSON, return the string as-is
+        return data;
+      }
     }
+    return data;
   };
 
   useEffect(() => {
     const fetchPortfolio = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`${API_URL}/api/portfolio/${userId}`);
-        setResume(res.data);
         setNotFound(false);
+        const res = await axios.get(`${API_URL}/api/portfolio/${userId}`);
+        
+        // Log the response for debugging
+        console.log("Portfolio API Response:", res.data);
+        
+        if (!res.data) {
+          console.error("No data received from API");
+          setNotFound(true);
+          return;
+        }
+        
+        // Ensure we have resume data
+        if (res.data && Object.keys(res.data).length > 0) {
+          setResume(res.data);
+          setNotFound(false);
+        } else {
+          console.error("Empty resume data received");
+          setNotFound(true);
+        }
       } catch (err) {
-        console.error("Portfolio not found");
+        console.error("Error fetching portfolio:", err);
+        console.error("Error details:", {
+          message: err.message,
+          response: err.response?.data,
+          status: err.response?.status,
+          statusText: err.response?.statusText
+        });
         setNotFound(true);
       } finally {
         setLoading(false);
@@ -139,7 +169,19 @@ export default function PortfolioPage() {
   }
 
   const summary = safeParse(resume.summary);
-  const skills = safeParse(resume.skills);
+  // Handle skills - can be string, array, or null
+  let skills = safeParse(resume.skills);
+  if (typeof skills === 'string') {
+    try {
+      skills = JSON.parse(skills);
+    } catch (e) {
+      // If parsing fails, treat as comma-separated string
+      skills = skills.split(',').map(s => s.trim()).filter(s => s);
+    }
+  }
+  if (!Array.isArray(skills)) {
+    skills = [];
+  }
   const experience = safeParse(resume.experience);
   const internship = safeParse(resume.internship);
   const jobExperience = safeParse(resume.job_experience);
@@ -163,38 +205,28 @@ export default function PortfolioPage() {
   let userGithub = "";
   let userLinkedin = "";
   let userPortfolio = "";
+  // Prioritize profilePicture from backend response (set in portfolioRoutes.js)
   let userProfilePicture = resume?.profilePicture || null;
   
-  console.log("=== PORTFOLIO DATA PROCESSING ===");
-  console.log("Summary type:", typeof summary);
-  console.log("Summary value:", summary);
-  console.log("Resume accountName:", resume?.accountName);
-  console.log("Logged in user:", loggedInUser);
-  console.log("Is own portfolio:", isOwnPortfolio);
-  console.log("Fallback name from localStorage:", loggedInUser?.name);
-  
+  // Prioritize accountName from backend (from users table) over summary.name
   if (typeof summary === 'string') {
     // Old structure: summary is just the AI-generated text
     userBio = summary;
-    // Try to get name from resume, account, or logged-in user (if own portfolio)
-    userName = resume?.name || resume?.accountName || (isOwnPortfolio ? loggedInUser?.name : "") || "";
-    console.log("Using old structure - userBio:", userBio?.substring(0, 50) + "...");
-    console.log("Using old structure - userName:", userName);
+    // Prioritize accountName from backend, then summary.name, then fallback
+    userName = resume?.accountName || resume?.name || (isOwnPortfolio ? loggedInUser?.name : "") || "";
   } else if (summary && typeof summary === 'object') {
     // New structure: summary is an object with contact details
-    userName = summary.name || resume?.accountName || (isOwnPortfolio ? loggedInUser?.name : "") || "";
+    // Prioritize accountName from backend (users table) over summary.name
+    userName = resume?.accountName || summary.name || (isOwnPortfolio ? loggedInUser?.name : "") || "";
     userEmail = summary.email || "";
     userGithub = summary.github || "";
     userLinkedin = summary.linkedin || "";
     userPortfolio = summary.portfolio || "";
-    userBio = summary.summary || "";
-    console.log("Using new structure - userName:", userName);
-    console.log("Using new structure - userBio:", userBio?.substring(0, 50) + "...");
+    userBio = summary.summary || summary.bio || "";
+  } else {
+    // No summary at all - use accountName from backend
+    userName = resume?.accountName || (isOwnPortfolio ? loggedInUser?.name : "") || "";
   }
-  
-  console.log("Final values - userName:", userName);
-  console.log("Final values - userBio:", userBio?.substring(0, 50) + "...");
-  console.log("Final values - userProfession will be:", resume?.title || allExperience[0]?.role);
   
   // Get profession/title - try multiple sources
   let userProfession = resume?.title || "";

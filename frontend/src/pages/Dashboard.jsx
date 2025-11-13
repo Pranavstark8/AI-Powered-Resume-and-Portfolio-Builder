@@ -35,6 +35,8 @@ export default function Dashboard() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        console.log("Dashboard: Fetching data...");
+        
         const [resumesRes, statsRes, profileRes] = await Promise.all([
           axios.get(`${API_URL}/api/portfolio/user`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -47,21 +49,60 @@ export default function Dashboard() {
           }),
         ]);
         
-        setResumes(resumesRes.data);
-        setStats(statsRes.data);
+        console.log("Dashboard: Data received", {
+          resumes: resumesRes.data,
+          stats: statsRes.data,
+          profile: profileRes.data
+        });
+        
+        setResumes(resumesRes.data || []);
+        setStats(statsRes.data || {
+          totalResumes: 0,
+          lastUpdated: null,
+          portfolioViews: 0,
+        });
         
         // Set profile picture if available
-        if (profileRes.data.success) {
-          setProfilePicture(profileRes.data.user.profile_picture || null);
-          setProfilePicturePublicId(profileRes.data.user.profile_picture_public_id || null);
+        if (profileRes.data && profileRes.data.success) {
+          const user = profileRes.data.user;
+          setProfilePicture(user.profile_picture || null);
+          setProfilePicturePublicId(user.profile_picture_public_id || null);
+          
+          // Update user in localStorage if name/profile changed
+          if (user.name || user.email) {
+            const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
+            const updatedUser = {
+              ...currentUser,
+              ...user
+            };
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+            setUser(updatedUser);
+            window.dispatchEvent(new Event('userUpdated'));
+          }
         }
       } catch (err) {
-        console.error("Error fetching data:", err);
+        console.error("Dashboard: Error fetching data:", err);
+        console.error("Error details:", {
+          message: err.message,
+          response: err.response?.data,
+          status: err.response?.status,
+          statusText: err.response?.statusText
+        });
+        
         // If token is invalid or expired, redirect to login
         if (err.response?.status === 401 || err.response?.status === 403) {
+          console.log("Dashboard: Token invalid, redirecting to login");
           localStorage.removeItem("token");
           localStorage.removeItem("user");
           navigate("/login");
+        } else {
+          // Set empty state on error to prevent showing stale data
+          setResumes([]);
+          setStats({
+            totalResumes: 0,
+            lastUpdated: null,
+            portfolioViews: 0,
+          });
         }
       } finally {
         setLoading(false);
@@ -93,6 +134,8 @@ export default function Dashboard() {
         const updatedUser = response.data.user;
         localStorage.setItem("user", JSON.stringify(updatedUser));
         setUser(updatedUser);
+        // Notify Navbar to refresh
+        window.dispatchEvent(new Event('userUpdated'));
       }
     } catch (error) {
       console.error("Error saving profile picture:", error);

@@ -26,6 +26,8 @@ export default function Login() {
       const res = await axios.post(`${API_URL}/api/auth/login`, form);
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
+      // Notify Navbar to refresh
+      window.dispatchEvent(new Event('userUpdated'));
       setMsg("Login successful!");
       
       // Redirect after a short delay

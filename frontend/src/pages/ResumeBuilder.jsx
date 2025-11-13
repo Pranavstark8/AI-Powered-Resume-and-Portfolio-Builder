@@ -245,6 +245,8 @@ export default function ResumeBuilder() {
       });
       
       // Merge contact details with AI-generated content
+      // Ensure skills are included as an array
+      const skillsArray = skills.split(",").map(s => s.trim()).filter(s => s);
       const completeResumeData = {
         ...res.data,
         name,
@@ -252,7 +254,11 @@ export default function ResumeBuilder() {
         mobile: mobile ? `${countryCode} ${mobile}` : "",
         linkedin,
         github,
-        portfolio
+        portfolio,
+        // Ensure skills is always an array
+        skills: res.data.skills && Array.isArray(res.data.skills) 
+          ? res.data.skills 
+          : (res.data.skills ? [res.data.skills] : skillsArray)
       };
       
       setResumeData(completeResumeData);
@@ -1194,22 +1200,39 @@ export default function ResumeBuilder() {
             )}
 
             {/* Technical Skills Section */}
-            {resumeData.skills && resumeData.skills.length > 0 && (
-              <div style={{ marginBottom: "1rem" }}>
-                <h2 style={{ 
-                  fontSize: "11pt", 
-                  fontWeight: "bold", 
-                  textTransform: "uppercase",
-                  marginBottom: "0.3rem",
-                  borderBottom: "0.5pt solid #000",
-                  paddingBottom: "0.1rem"
-                }}>
-                  Technical Skills
-                </h2>
-                <div style={{ fontSize: "10pt" }}>
-                  <strong>Languages & Technologies:</strong> {resumeData.skills.join(", ")}
-                </div>
-              </div>
+            {resumeData.skills && (
+              (() => {
+                // Ensure skills is an array
+                let skillsArray = resumeData.skills;
+                if (typeof skillsArray === 'string') {
+                  try {
+                    skillsArray = JSON.parse(skillsArray);
+                  } catch (e) {
+                    skillsArray = skillsArray.split(',').map(s => s.trim()).filter(s => s);
+                  }
+                }
+                if (!Array.isArray(skillsArray)) {
+                  skillsArray = [];
+                }
+                
+                return skillsArray.length > 0 ? (
+                  <div style={{ marginBottom: "1rem" }}>
+                    <h2 style={{ 
+                      fontSize: "11pt", 
+                      fontWeight: "bold", 
+                      textTransform: "uppercase",
+                      marginBottom: "0.3rem",
+                      borderBottom: "0.5pt solid #000",
+                      paddingBottom: "0.1rem"
+                    }}>
+                      Technical Skills
+                    </h2>
+                    <div style={{ fontSize: "10pt" }}>
+                      <strong>Languages & Technologies:</strong> {skillsArray.join(", ")}
+                    </div>
+                  </div>
+                ) : null;
+              })()
             )}
           </div>
           {/* End of Resume Preview Card with Ref */}
