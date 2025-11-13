@@ -67,17 +67,30 @@ export default function ResumeBuilder() {
       setIsEditMode(true);
       
       // Parse summary for contact details
-      const summary = typeof resume.summary === 'string' ? JSON.parse(resume.summary) : resume.summary;
+      // Backend now returns parsed objects, but handle both string and object cases
+      let summary = null;
+      if (resume.summary) {
+        if (typeof resume.summary === 'string') {
+          try {
+            summary = JSON.parse(resume.summary);
+          } catch (e) {
+            console.error("Error parsing summary:", e);
+            summary = null;
+          }
+        } else if (typeof resume.summary === 'object') {
+          summary = resume.summary;
+        }
+      }
       
       // Set resume title
       setResumeTitle(resume.title || "");
       
-      // Set basic info
-      setName(summary.name || "");
-      setEmail(summary.email || "");
+      // Set basic info - handle null/undefined summary
+      setName(summary?.name || "");
+      setEmail(summary?.email || "");
       
       // Parse mobile to extract country code and number
-      if (summary.mobile) {
+      if (summary?.mobile) {
         const mobileMatch = summary.mobile.match(/^(\+\d+)\s(.+)$/);
         if (mobileMatch) {
           setCountryCode(mobileMatch[1]);
@@ -85,42 +98,100 @@ export default function ResumeBuilder() {
         } else {
           setMobile(summary.mobile);
         }
+      } else {
+        setCountryCode("+91");
+        setMobile("");
       }
       
-      setLinkedin(summary.linkedin || "");
-      setGithub(summary.github || "");
-      setPortfolio(summary.portfolio || "");
+      setLinkedin(summary?.linkedin || "");
+      setGithub(summary?.github || "");
+      setPortfolio(summary?.portfolio || "");
       
-      // Parse and set skills
-      const skillsData = typeof resume.skills === 'string' ? JSON.parse(resume.skills) : resume.skills;
+      // Parse and set skills - handle both string and already-parsed cases
+      let skillsData = [];
+      if (resume.skills) {
+        if (typeof resume.skills === 'string') {
+          try {
+            skillsData = JSON.parse(resume.skills);
+          } catch (e) {
+            skillsData = [];
+          }
+        } else if (Array.isArray(resume.skills)) {
+          skillsData = resume.skills;
+        }
+      }
       setSkills(Array.isArray(skillsData) ? skillsData.join(", ") : "");
       
-      // Parse and set education
-      const educationData = typeof resume.education === 'string' ? JSON.parse(resume.education) : resume.education;
+      // Parse and set education - handle both string and already-parsed cases
+      let educationData = [];
+      if (resume.education) {
+        if (typeof resume.education === 'string') {
+          try {
+            educationData = JSON.parse(resume.education);
+          } catch (e) {
+            educationData = [];
+          }
+        } else if (Array.isArray(resume.education)) {
+          educationData = resume.education;
+        }
+      }
       setEducationList(Array.isArray(educationData) && educationData.length > 0 
         ? educationData 
         : [{ degree: "", institution: "", year: "" }]);
       
-      // Parse and set internships
-      const internshipData = typeof resume.internship === 'string' ? JSON.parse(resume.internship) : resume.internship;
+      // Parse and set internships - handle both string and already-parsed cases
+      let internshipData = [];
+      if (resume.internship) {
+        if (typeof resume.internship === 'string') {
+          try {
+            internshipData = JSON.parse(resume.internship);
+          } catch (e) {
+            internshipData = [];
+          }
+        } else if (Array.isArray(resume.internship)) {
+          internshipData = resume.internship;
+        }
+      }
       setInternships(Array.isArray(internshipData) && internshipData.length > 0 
         ? internshipData 
         : [{ role: "", company: "", duration: "", description: "" }]);
       
-      // Parse and set jobs
-      const jobData = typeof resume.job_experience === 'string' ? JSON.parse(resume.job_experience) : resume.job_experience;
+      // Parse and set jobs - handle both string and already-parsed cases
+      let jobData = [];
+      if (resume.job_experience) {
+        if (typeof resume.job_experience === 'string') {
+          try {
+            jobData = JSON.parse(resume.job_experience);
+          } catch (e) {
+            jobData = [];
+          }
+        } else if (Array.isArray(resume.job_experience)) {
+          jobData = resume.job_experience;
+        }
+      }
       setJobs(Array.isArray(jobData) && jobData.length > 0 
         ? jobData 
         : [{ role: "", company: "", duration: "", description: "" }]);
       
-      // Parse and set projects
-      const projectData = typeof resume.projects === 'string' ? JSON.parse(resume.projects) : resume.projects;
+      // Parse and set projects - handle both string and already-parsed cases
+      let projectData = [];
+      if (resume.projects) {
+        if (typeof resume.projects === 'string') {
+          try {
+            projectData = JSON.parse(resume.projects);
+          } catch (e) {
+            projectData = [];
+          }
+        } else if (Array.isArray(resume.projects)) {
+          projectData = resume.projects;
+        }
+      }
       setProjects(Array.isArray(projectData) && projectData.length > 0 
         ? projectData 
         : [{ title: "", techStack: "", description: "" }]);
       
       // Set the generated resume data if summary exists
-      if (summary.summary) {
+      if (summary && summary.summary) {
         setResumeData({
           summary: summary.summary,
           skills: skillsData,
@@ -128,12 +199,12 @@ export default function ResumeBuilder() {
           internship: internshipData,
           jobExperience: jobData,
           projects: projectData,
-          name: summary.name,
-          email: summary.email,
-          mobile: summary.mobile,
-          linkedin: summary.linkedin,
-          github: summary.github,
-          portfolio: summary.portfolio
+          name: summary.name || "",
+          email: summary.email || "",
+          mobile: summary.mobile || "",
+          linkedin: summary.linkedin || "",
+          github: summary.github || "",
+          portfolio: summary.portfolio || ""
         });
       }
       
